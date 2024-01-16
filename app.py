@@ -225,8 +225,8 @@ def post(id=None):
             subject = form_result["subject"]
             facts = form_result["facts"]
             style = form_result["style"]
-            prompt = F"Facts:\n{facts}\nGenerate a well thought out, compelling blog called '{subject}' using the facts above. Write it a {style} style for the facts above. Output it in Markdown format."
-            form_result["post"] = llm(prompt) + "\nHuman Intervention: 0%"
+            prompt = F"Facts:\n{facts}\nGenerate a blog post called '{subject}' using all the facts above. Write it a {style} style. Output the blog post in Markdown format."
+            form_result["post"] = llm(prompt) + "\n * Human Intervention: None\n"
 
         # Store the post by replacing or inserting
         if id:
@@ -262,6 +262,12 @@ def generate():
         post_text = post["post"]
         facts = post["facts"]
 
+        # Generate fact strings
+        fact_string = ""
+        for fact in facts.split("\n"):
+            if fact != "":
+                fact_string = fact_string + F"* {fact}\n"
+
         # Add the hugo header
         post_header = hugo_header.replace("{title}", post["subject"])
         post_header = post_header.replace("{date}", post["post_date"])
@@ -270,7 +276,7 @@ def generate():
         post_text = post_header + post_text
 
         with open(filename, 'w', encoding='utf-8') as post_file:
-            post_file.write(post_text + "\n### Facts Used:\n" + facts)
+            post_file.write(post_text + "\n### Facts Used:\n" + fact_string)
 
     return redirect(url_for('index'))
 
