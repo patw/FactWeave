@@ -205,7 +205,7 @@ def post(id=None):
 
     # The single input box and submit button
     form = BlogPostForm()
-    form.style.data = "technical, in depth and professional"
+    form.style.data = "technical, detailed and professional"
     now = datetime.datetime.now()
     form.post_date.data = now.strftime("%Y-%m-%d")
     form.tags.data = "RAG, Grounding, LLM"
