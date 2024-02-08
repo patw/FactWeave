@@ -108,7 +108,7 @@ def llm(user_prompt, system_message = "You are a helpful assistant", temperature
     return output
 
 # Search the facts semantically
-def search_posts(prompt, candidates = 100, limit = 20, score_cut = 0.89):
+def search_posts(prompt, candidates = 100, limit = 5, score_cut = 0.89):
 
     # Get the embedding for the prompt first
     vector = embed(prompt)
@@ -192,7 +192,7 @@ def index():
         posts = search_posts(form_result["search"])
     else:
         # Query mongo for blog posts
-        posts = col.find()
+        posts = col.find().sort({"post_date": -1}).limit(5)
     
     # Spit out the template
     return render_template('index.html', posts=posts, form=form)

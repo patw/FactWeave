@@ -5,6 +5,7 @@
 <div class="container-fluid">
     <div class="row">
         <div class="col-md-10 col-lg-10 mx-lg-auto mx-md-auto">
+            {{ wtf.quick_form(form) }}
             <table class="table table-sm">
                 <thead>
                     <th>Subject</th>
@@ -27,7 +28,6 @@
                     {% endfor %}
                 </tbody>
             </table>
-            {{ wtf.quick_form(form) }}
         </div>
     </div>
 </div>
