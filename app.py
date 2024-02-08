@@ -192,7 +192,7 @@ def index():
         posts = search_posts(form_result["search"])
     else:
         # Query mongo for blog posts
-        posts = col.find().sort({"post_date": -1}).limit(5)
+        posts = col.find().sort([("post_date", -1)]).limit(5)
     
     # Spit out the template
     return render_template('index.html', posts=posts, form=form)
