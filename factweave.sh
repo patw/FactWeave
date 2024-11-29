@@ -1,2 +1,2 @@
 #!/bin/bash
-flask run -p 3333 --host 0.0.0.0
+python3 -m flask run -p 7862 --host 0.0.0.0
