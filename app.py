@@ -14,12 +14,14 @@ import os
 import json
 import functools
 import requests
-import time
 import datetime
 
 # Mongo stuff
 import pymongo
 from bson import ObjectId
+
+# Use local models with the OpenAI library and a custom baseurl
+from openai import OpenAI
 
 # Nice way to load environment variables for deployments
 from dotenv import load_dotenv
@@ -39,6 +41,13 @@ app.config['SECRET_KEY'] = os.environ["SECRET_KEY"]
 # Site path for Hugo, can be any site you want to drop MD files into though
 site_path = os.environ["CONTENT"]
 
+# Get some defaults from the config file
+DEFAULT_SYSTEM = os.environ["DEFAULT_SYSTEM"]
+DEFAULT_PROMPT = os.environ["DEFAULT_PROMPT"]
+DEFAULT_STYLE = os.environ["DEFAULT_STYLE"]
+DEFAULT_TAGS = os.environ["DEFAULT_TAGS"]
+DEFAULT_CATEGORY = os.environ["DEFAULT_CATEGORY"]
+
 # Hugo header string
 hugo_header = """
 +++
@@ -57,7 +66,7 @@ users = json.loads(users_string)
 
 # Load the llm model config
 with open("model.json", 'r',  encoding='utf-8') as file:
-    model = json.load(file)
+    llm_config = json.load(file)
 
 # Load the embedder config
 with open("embedder.json", 'r',  encoding='utf-8') as file:
@@ -72,40 +81,12 @@ def embed(text):
     vector_embedding = response.json()
     return vector_embedding
 
-# Call the LLM to do stuff
-def llm(user_prompt, system_message = "You are a helpful assistant", temperature = 0.7, n_predict = -1):
-
-    # Build the prompt
-    prompt = model["prompt_format"].replace("{system}", system_message)
-    prompt = prompt.replace("{prompt}", user_prompt)
-
-    # Data to send to the llama.cpp server API
-    api_data = {
-        "prompt": prompt,
-        "n_predict": n_predict,
-        "temperature": temperature,
-        "stop": model["stop_tokens"],
-        "tokens_cached": 0
-    }
-
-    # Attempt to do a completion but retry and back off if the model is not ready
-    retries = 3
-    backoff_factor = 1
-    while retries > 0:
-        try:
-            response = requests.post(model["llama_endpoint"], headers={"Content-Type": "application/json"}, json=api_data)
-            json_output = response.json()
-            output = json_output['content']
-            break
-        except:
-            time.sleep(backoff_factor)
-            backoff_factor *= 2
-            retries -= 1
-            output = "My AI model is not responding, try again in a moment 🔥🐳"
-            continue
-
-    # Unfiltered output
-    return output
+# Call llm using the llm configuration
+def llm_local(prompt, system_message, temperature):
+    client = OpenAI(api_key=llm_config["api_key"], base_url=llm_config["base_url"])
+    messages=[{"role": "system", "content": system_message},{"role": "user", "content": prompt}]
+    response = client.chat.completions.create(model=llm_config["model"], temperature=temperature, messages=messages)
+    return response.choices[0].message.content
 
 # Search the facts semantically
 def search_posts(prompt, candidates = 100, limit = 5, score_cut = 0.89):
@@ -205,11 +186,11 @@ def post(id=None):
 
     # The single input box and submit button
     form = BlogPostForm()
-    form.style.data = "technical, detailed and professional"
+    form.style.data = DEFAULT_STYLE
     now = datetime.datetime.now()
     form.post_date.data = now.strftime("%Y-%m-%d")
-    form.tags.data = "RAG, Grounding, LLM"
-    form.categories.data = "AI"
+    form.tags.data = DEFAULT_TAGS
+    form.categories.data = DEFAULT_CATEGORY
     
     if form.validate_on_submit():
         # Get the form variables and remove the extra junk
@@ -225,8 +206,8 @@ def post(id=None):
             subject = form_result["subject"]
             facts = form_result["facts"]
             style = form_result["style"]
-            prompt = F"Facts:\n{facts}\nGenerate a blog post called '{subject}' using all the facts above. Write it a {style} style. Output the blog post in Markdown format."
-            form_result["post"] = llm(prompt) + "\n * Human Intervention: None\n"
+            prompt = DEFAULT_PROMPT.format(facts=facts,subject=subject,style=style)
+            form_result["post"] = llm_local(prompt, DEFAULT_SYSTEM, 0.7) + "\n * Human Intervention: None\n"
 
         # Store the post by replacing or inserting
         if id:
